@@ -1,0 +1,7 @@
+{
+  "name": "AI Smart Chef - 自動生成食譜",
+  "description": "這是一款由 AI 驅動的智能食譜生成應用。使用者可以透過拍照識別食材，並根據個人飲食禁忌、過敏原與現有器材，自動生成多樣化的創意食譜，並提供專業的烹飪引導模式。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
