@@ -5,11 +5,11 @@ import { INITIAL_USER_PROFILE, APP_CATEGORIES } from './constants';
 import { InfoIcon } from './components/InfoIcon';
 import { RecipeCard } from './components/RecipeCard';
 import { generateRecipes } from './geminiService';
+import { SEED_RECIPES, SeedRecipe } from './seedRecipes';
 
 // --- Onboarding Page ---
 const OnboardingPage: React.FC<{ onComplete: (profile: UserProfile) => void }> = ({ onComplete }) => {
   const [step, setStep] = useState(1);
-  // Fixed: Added optInCloud and used DetailLevel.DETAILED to match updated UserProfile interface
   const [formData, setFormData] = useState<Omit<UserProfile, 'updatedAt'>>({
     displayName: '',
     allergies: [],
@@ -172,15 +172,16 @@ const OnboardingPage: React.FC<{ onComplete: (profile: UserProfile) => void }> =
 
 // --- Sub-pages ---
 // 1. Home Page
-const HomePage: React.FC<{ onSelectRecipe: (r: Recipe) => void }> = ({ onSelectRecipe }) => {
-  const [sortBy, setSortBy] = useState('綜合');
+const HomePage: React.FC<{ onSelectRecipe: (r: Recipe | SeedRecipe) => void }> = ({ onSelectRecipe }) => {
+  const [sortBy, setSortBy] = useState('Top5(綜合)');
   
-  // Mock Top 5 data
-  const top5Recipes: Recipe[] = [
-    { recipe_id: 'seed-1', title: '日式黃金咖哩飯', category: Category.RICE, short_description: '濃郁咖哩香氣，經典家常料理。', servings: 2, total_time_minutes: 40, calories_estimate_kcal: 750, calories_confidence: 'estimate', equipment_needed: ['電鍋'], ingredients: [], missing_or_substitutions: [], steps: [], safety_notes: [], tags: [], rating: 4.8, review_count: 125, source: 'seed' },
-    { recipe_id: 'seed-2', title: '清燉番茄牛肉麵', category: Category.NOODLES, short_description: '番茄清甜與軟嫩牛肉的完美結合。', servings: 2, total_time_minutes: 90, calories_estimate_kcal: 620, calories_confidence: 'estimate', equipment_needed: ['燉鍋'], ingredients: [], missing_or_substitutions: [], steps: [], safety_notes: [], tags: [], rating: 4.9, review_count: 89, source: 'seed' },
-    { recipe_id: 'seed-3', title: '蒜香蛤蜊雞湯', category: Category.SOUP, short_description: '鮮甜海味，暖心補身首選。', servings: 4, total_time_minutes: 50, calories_estimate_kcal: 350, calories_confidence: 'estimate', equipment_needed: ['湯鍋'], ingredients: [], missing_or_substitutions: [], steps: [], safety_notes: [], tags: [], rating: 4.7, review_count: 56, source: 'seed' },
-  ];
+  // 計算 Top 5 排序
+  const top5Recipes = [...SEED_RECIPES].sort((a, b) => {
+    if (sortBy === '評分最高') return b.rating - a.rating;
+    if (sortBy === '最流行(近期)') return b.review_count - a.review_count;
+    // 預設為評分與評論數綜合權重
+    return (b.rating * b.review_count) - (a.rating * a.review_count);
+  }).slice(0, 5);
 
   return (
     <div className="pb-24">
@@ -191,7 +192,7 @@ const HomePage: React.FC<{ onSelectRecipe: (r: Recipe) => void }> = ({ onSelectR
           <select 
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="bg-white border border-gray-200 text-sm rounded-lg px-2 py-1 outline-none"
+            className="bg-white border border-gray-200 text-sm rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-100"
           >
             <option>Top5(綜合)</option>
             <option>評分最高</option>
@@ -204,50 +205,36 @@ const HomePage: React.FC<{ onSelectRecipe: (r: Recipe) => void }> = ({ onSelectR
         <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar">
           {top5Recipes.map((recipe, idx) => (
             <div key={recipe.recipe_id} className="relative flex-shrink-0">
-              <div className="absolute -top-2 -left-2 z-10 bg-yellow-400 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-md">
+              <div className="absolute -top-2 -left-2 z-10 bg-yellow-400 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-md border-2 border-white">
                 {idx + 1}
               </div>
-              <RecipeCard recipe={recipe} onClick={onSelectRecipe} />
+              <RecipeCard recipe={recipe as any} onClick={() => onSelectRecipe(recipe)} />
             </div>
           ))}
         </div>
       </div>
 
       {/* Categorized Recommendations */}
-      {APP_CATEGORIES.map(cat => (
-        <section key={cat} className="mt-8 px-4">
-          <div className="flex justify-between items-end mb-4">
-            <h3 className="text-lg font-bold text-gray-800">{cat}推薦</h3>
-            <button className="text-blue-500 text-sm font-medium">查看更多 <i className="fa-solid fa-chevron-right ml-1"></i></button>
-          </div>
-          <div className="flex overflow-x-auto gap-4 pb-2 no-scrollbar">
-            {/* Mock horizontal cards */}
-            {[1, 2, 3].map(i => (
-              <RecipeCard 
-                key={`${cat}-${i}`}
-                recipe={{
-                  recipe_id: `mock-${cat}-${i}`,
-                  title: `${cat}特色料理 ${i}`,
-                  category: cat,
-                  short_description: `這是一道非常受歡迎的${cat}料理，簡單好做。`,
-                  servings: 2,
-                  total_time_minutes: 25 + i * 5,
-                  calories_estimate_kcal: 400 + i * 50,
-                  calories_confidence: 'estimate',
-                  equipment_needed: [],
-                  ingredients: [],
-                  missing_or_substitutions: [],
-                  steps: [],
-                  safety_notes: [],
-                  tags: [],
-                  source: 'ai'
-                }}
-                onClick={onSelectRecipe}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {APP_CATEGORIES.map(cat => {
+        const catRecipes = SEED_RECIPES.filter(r => r.category === cat).slice(0, 10);
+        return (
+          <section key={cat} className="mt-8 px-4">
+            <div className="flex justify-between items-end mb-4">
+              <h3 className="text-lg font-bold text-gray-800">{cat}推薦</h3>
+              <button className="text-blue-500 text-sm font-medium">查看更多 <i className="fa-solid fa-chevron-right ml-1"></i></button>
+            </div>
+            <div className="flex overflow-x-auto gap-4 pb-2 no-scrollbar">
+              {catRecipes.map(recipe => (
+                <RecipeCard 
+                  key={recipe.recipe_id}
+                  recipe={recipe as any}
+                  onClick={() => onSelectRecipe(recipe)}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 };
@@ -538,7 +525,7 @@ const RecipeDetailPage: React.FC<{ recipe: Recipe, onBack: () => void }> = ({ re
                 <span className="font-bold text-gray-800">{ing.amount}</span>
               </div>
             )) : (
-              <p className="text-gray-400 text-sm">點擊按鈕獲取食材細節</p>
+              <p className="text-gray-400 text-sm">載入食材中...</p>
             )}
           </div>
         </div>
@@ -660,6 +647,45 @@ export default function App() {
     setShowOnboarding(false);
   };
 
+  const handleRecipeSelection = async (recipe: Recipe | SeedRecipe) => {
+    if (recipe.source === 'seed') {
+      setIsGenerating(true);
+      try {
+        const seed = recipe as SeedRecipe;
+        const result = await generateRecipes(seed.seed_ingredients, {
+          user_free_text: `這是一道「${seed.title}」，分類為「${seed.category}」，描述為「${seed.short_description}」。請嚴格以此為基底生成細節。`,
+          allergies: [],
+          dietary_rules: [],
+          equipment: seed.equipment_needed,
+          detail_level: DetailLevel.DETAILED,
+          servings: seed.servings,
+        });
+        
+        if (result.recipes && result.recipes.length > 0) {
+          // 合併 seed 資訊與 AI 生成的步驟
+          const fullRecipe: Recipe = {
+            ...result.recipes[0],
+            recipe_id: seed.recipe_id,
+            title: seed.title,
+            category: seed.category,
+            short_description: seed.short_description,
+            source: 'ai', // 標記為已生成的 AI 食譜
+          };
+          setSelectedRecipe(fullRecipe);
+        } else {
+          alert("食譜步驟研製失敗，請重新嘗試。");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("連線 AI 失敗，請檢查網路。");
+      } finally {
+        setIsGenerating(false);
+      }
+    } else {
+      setSelectedRecipe(recipe as Recipe);
+    }
+  };
+
   const handleCameraConfirm = async (ingredients: string[]) => {
     setIsGenerating(true);
     setActiveTab('home'); // Go back to main container view
@@ -676,39 +702,46 @@ export default function App() {
   };
 
   const renderContent = () => {
+    // Handle full-screen overlays first
     if (selectedRecipe) {
       return <RecipeDetailPage recipe={selectedRecipe} onBack={() => setSelectedRecipe(null)} />;
     }
 
-    if (activeTab === 'camera') {
-      return <CameraPage onConfirm={handleCameraConfirm} />;
-    }
-
     if (isGenerating) {
       return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center animate-pulse">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-          <h2 className="text-xl font-bold mb-2">正在為您構思食譜...</h2>
-          <p className="text-gray-500 text-sm">正在分析食材、比對您的飲食禁忌並設計烹飪步驟</p>
-        </div>
-      );
-    }
-
-    if (candidates.length > 0 && activeTab === 'home') {
-      return (
-        <div>
-          <div className="px-4 pt-4 flex justify-between items-center">
-             <button onClick={() => setCandidates([])} className="text-xs text-blue-500 font-bold">← 返回首頁推薦</button>
+          <h2 className="text-xl font-bold mb-2">AI 主廚研製中...</h2>
+          <p className="text-gray-500 text-sm">正在根據您的偏好分析食材、規劃烹飪步驟並設計計時提醒</p>
+          <div className="mt-8 grid grid-cols-2 gap-3 w-full opacity-30">
+             <div className="h-24 bg-gray-200 rounded-2xl"></div>
+             <div className="h-24 bg-gray-200 rounded-2xl"></div>
           </div>
-          <CandidatePage recipes={candidates} onSelect={setSelectedRecipe} />
         </div>
       );
     }
 
+    // Combined all tab rendering into a single switch to prevent unintentional type narrowing issues
+    // and unreachable code errors that can occur with multiple sequential if-checks.
     switch (activeTab) {
-      case 'home': return <HomePage onSelectRecipe={setSelectedRecipe} />;
-      case 'profile': return <ProfilePage />;
-      default: return null;
+      case 'camera':
+        return <CameraPage onConfirm={handleCameraConfirm} />;
+      case 'home':
+        if (candidates.length > 0) {
+          return (
+            <div>
+              <div className="px-4 pt-4 flex justify-between items-center">
+                 <button onClick={() => setCandidates([])} className="text-xs text-blue-500 font-bold hover:underline">← 返回首頁推薦</button>
+              </div>
+              <CandidatePage recipes={candidates} onSelect={setSelectedRecipe} />
+            </div>
+          );
+        }
+        return <HomePage onSelectRecipe={handleRecipeSelection} />;
+      case 'profile':
+        return <ProfilePage />;
+      default:
+        return null;
     }
   };
 
@@ -735,18 +768,18 @@ export default function App() {
       </main>
 
       {/* Bottom Nav */}
-      {!selectedRecipe && activeTab !== 'camera' && (
+      {!selectedRecipe && activeTab !== 'camera' && !isGenerating && (
         <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-100 flex justify-around py-3 px-6 z-50">
           <button 
             onClick={() => { setActiveTab('home'); setCandidates([]); }}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'home' ? 'text-blue-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'home' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <i className="fa-solid fa-house-chimney text-xl"></i>
             <span className="text-[10px] font-bold">主頁</span>
           </button>
           <button 
             onClick={() => setActiveTab('camera')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'camera' ? 'text-blue-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1 transition-transform active:scale-95 ${activeTab === 'camera' ? 'text-blue-600' : 'text-gray-400'}`}
           >
             <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white -mt-8 shadow-lg shadow-blue-200">
               <i className="fa-solid fa-camera text-xl"></i>
@@ -755,7 +788,7 @@ export default function App() {
           </button>
           <button 
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400'}`}
+            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-500'}`}
           >
             <i className="fa-solid fa-user text-xl"></i>
             <span className="text-[10px] font-bold">個人</span>
