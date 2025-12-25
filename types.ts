@@ -82,11 +82,14 @@ export interface GeminiRecipeResponse {
   recipes: Recipe[];
 }
 
+// Added optInCloud and fixed detailLevel type to use DetailLevel enum
 export interface UserProfile {
   displayName: string;
   allergies: string[];
   dietaryRules: string[];
   equipment: string[];
   detailLevel: DetailLevel;
+  language: "zh-TW";
+  updatedAt: number;
   optInCloud: boolean;
 }

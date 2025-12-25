@@ -9,12 +9,15 @@ export const APP_CATEGORIES = [
   Category.DESSERT
 ];
 
+// Fixed: Added missing language and updatedAt properties to satisfy UserProfile interface
 export const INITIAL_USER_PROFILE: UserProfile = {
   displayName: '廚藝新秀',
   allergies: [],
   dietaryRules: [],
   equipment: ['電鍋', '炒鍋', '烤箱'],
   detailLevel: DetailLevel.DETAILED,
+  language: 'zh-TW',
+  updatedAt: Date.now(),
   optInCloud: false
 };
 

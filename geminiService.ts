@@ -1,14 +1,14 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Category, DetailLevel, GeminiRecipeResponse } from "./types";
+import { GeminiRecipeResponse } from "./types";
 
-const API_KEY = process.env.API_KEY || "";
-
+// Fixed: Using process.env.API_KEY directly in the function and following @google/genai guidelines
 export const generateRecipes = async (
   ingredients: string[],
   constraints: any
 ): Promise<GeminiRecipeResponse> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  // Always use { apiKey: process.env.API_KEY } for initialization
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `依據以下食材：${ingredients.join(', ')}。
   使用者需求：${constraints.user_free_text || '無'}。
@@ -17,6 +17,7 @@ export const generateRecipes = async (
   可用器材：${constraints.equipment.join(', ')}。
   請生成 3-5 個食譜候選。`;
 
+  // Always use ai.models.generateContent to query GenAI with model and prompt
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
     contents: prompt,
@@ -114,5 +115,6 @@ export const generateRecipes = async (
     }
   });
 
+  // Extracting text output from response correctly using the .text property
   return JSON.parse(response.text);
 };

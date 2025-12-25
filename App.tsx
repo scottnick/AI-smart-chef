@@ -6,6 +6,170 @@ import { InfoIcon } from './components/InfoIcon';
 import { RecipeCard } from './components/RecipeCard';
 import { generateRecipes } from './geminiService';
 
+// --- Onboarding Page ---
+const OnboardingPage: React.FC<{ onComplete: (profile: UserProfile) => void }> = ({ onComplete }) => {
+  const [step, setStep] = useState(1);
+  // Fixed: Added optInCloud and used DetailLevel.DETAILED to match updated UserProfile interface
+  const [formData, setFormData] = useState<Omit<UserProfile, 'updatedAt'>>({
+    displayName: '',
+    allergies: [],
+    dietaryRules: [],
+    equipment: [],
+    detailLevel: DetailLevel.DETAILED,
+    language: 'zh-TW',
+    optInCloud: false,
+  });
+
+  const toggleItem = (listName: 'allergies' | 'dietaryRules' | 'equipment', item: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [listName]: prev[listName].includes(item)
+        ? (prev[listName] as string[]).filter(i => i !== item)
+        : [...(prev[listName] as string[]), item]
+    }));
+  };
+
+  const handleNext = () => {
+    if (step === 1 && !formData.displayName.trim()) return;
+    if (step < 5) setStep(s => s + 1);
+    else {
+      onComplete({ ...formData, updatedAt: Date.now() });
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black text-gray-800">歡迎！<br/>該如何稱呼您呢？</h2>
+            <div className="relative">
+              <input 
+                type="text"
+                placeholder="請輸入您的暱稱"
+                className="w-full border-b-2 border-gray-200 py-4 text-xl outline-none focus:border-blue-500 transition-colors"
+                value={formData.displayName}
+                onChange={e => setFormData({ ...formData, displayName: e.target.value })}
+              />
+              {!formData.displayName && <p className="text-xs text-red-400 mt-2">這欄位是必填的喔！</p>}
+            </div>
+          </div>
+        );
+      case 2:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black text-gray-800">您對哪些食材過敏？</h2>
+            <p className="text-sm text-gray-400">我們會自動在食譜中過濾或提供替代方案。</p>
+            <div className="grid grid-cols-2 gap-3">
+              {['蝦', '蟹', '花生', '牛奶', '蛋', '大豆', '堅果', '麩質'].map(item => (
+                <button
+                  key={item}
+                  onClick={() => toggleItem('allergies', item)}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${formData.allergies.includes(item) ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold">{item}</span>
+                    {formData.allergies.includes(item) && <i className="fa-solid fa-circle-check text-blue-500"></i>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black text-gray-800">有任何飲食禁忌嗎？</h2>
+            <p className="text-sm text-gray-400">這將幫助我們推薦更適合您的料理方式。</p>
+            <div className="grid grid-cols-1 gap-3">
+              {['全素食', '蛋奶素', '不吃牛', '低醣 (Low Carb)', '低脂', '低鈉'].map(item => (
+                <button
+                  key={item}
+                  onClick={() => toggleItem('dietaryRules', item)}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all flex items-center justify-between ${formData.dietaryRules.includes(item) ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}
+                >
+                  <span className="font-bold">{item}</span>
+                  {formData.dietaryRules.includes(item) && <i className="fa-solid fa-circle-check text-blue-500"></i>}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 4:
+        return (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-black text-gray-800">您家中有哪些器材？</h2>
+            <p className="text-sm text-gray-400">根據器材，AI 將自動調整烹飪流程。</p>
+            <div className="grid grid-cols-2 gap-3">
+              {['電鍋', '氣炸鍋', '烤箱', '微波爐', '平底鍋', '燉鍋'].map(item => (
+                <button
+                  key={item}
+                  onClick={() => toggleItem('equipment', item)}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${formData.equipment.includes(item) ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold">{item}</span>
+                    {formData.equipment.includes(item) && <i className="fa-solid fa-circle-check text-blue-500"></i>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 5:
+        return (
+          <div className="space-y-8 text-center py-4">
+            <div className="w-24 h-24 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-4xl mx-auto shadow-sm">
+              <i className="fa-solid fa-check-double"></i>
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-800 mb-2">設定完成！</h2>
+              <p className="text-gray-500 px-6">太棒了，{formData.displayName}！您的 AI 主廚已經準備好為您量身打造專屬食譜。</p>
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-6 text-left space-y-3">
+              <p className="text-xs font-bold text-gray-400 uppercase">資料摘要</p>
+              <p className="text-sm"><span className="text-gray-400">稱呼：</span>{formData.displayName}</p>
+              <p className="text-sm"><span className="text-gray-400">過敏：</span>{formData.allergies.join(', ') || '無'}</p>
+              <p className="text-sm"><span className="text-gray-400">習慣：</span>{formData.dietaryRules.join(', ') || '無'}</p>
+              <p className="text-sm"><span className="text-gray-400">器材：</span>{formData.equipment.join(', ') || '基本廚具'}</p>
+            </div>
+          </div>
+        );
+      default: return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col p-8">
+      <div className="w-full bg-gray-100 h-1.5 rounded-full mb-12 overflow-hidden">
+        <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${(step / 5) * 100}%` }}></div>
+      </div>
+
+      <div className="flex-1">
+        {renderStepContent()}
+      </div>
+
+      <div className="flex gap-4 pt-8">
+        {step > 1 && step < 5 && (
+          <button 
+            onClick={() => setStep(s => s - 1)}
+            className="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200"
+          >
+            返回
+          </button>
+        )}
+        <button 
+          disabled={step === 1 && !formData.displayName.trim()}
+          onClick={handleNext}
+          className={`flex-1 py-4 font-bold rounded-2xl shadow-lg transition-all ${step === 1 && !formData.displayName.trim() ? 'bg-gray-200 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+        >
+          {step === 5 ? '開始探索食譜' : '下一步'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // --- Sub-pages ---
 // 1. Home Page
 const HomePage: React.FC<{ onSelectRecipe: (r: Recipe) => void }> = ({ onSelectRecipe }) => {
@@ -470,6 +634,31 @@ export default function App() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [candidates, setCandidates] = useState<Recipe[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check local storage for existing profile
+    const stored = localStorage.getItem('user_profile_v1');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.displayName) {
+          setShowOnboarding(false);
+        } else {
+          setShowOnboarding(true);
+        }
+      } catch (e) {
+        setShowOnboarding(true);
+      }
+    } else {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = (profile: UserProfile) => {
+    localStorage.setItem('user_profile_v1', JSON.stringify(profile));
+    setShowOnboarding(false);
+  };
 
   const handleCameraConfirm = async (ingredients: string[]) => {
     setIsGenerating(true);
@@ -522,6 +711,22 @@ export default function App() {
       default: return null;
     }
   };
+
+  if (showOnboarding === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+        <OnboardingPage onComplete={handleOnboardingComplete} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen shadow-lg relative flex flex-col">
